@@ -26,6 +26,13 @@
 #include "jni/XWalkContentsIoThreadClient_jni.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
+
+// update: include request body data:
+#include "net/base/upload_bytes_element_reader.h"
+#include "net/base/upload_data_stream.h"
+#include "net/base/upload_element_reader.h"
+#include "net/base/upload_file_element_reader.h"
+
 #include "net/url_request/url_request.h"
 #include "url/gurl.h"
 #include "xwalk/runtime/browser/android/xwalk_web_resource_response_impl.h"
@@ -35,6 +42,7 @@ using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaArrayOfStrings;
+using base::android::ToJavaArrayOfByteArrays;
 using base::LazyInstance;
 using content::BrowserThread;
 using content::RenderFrameHost;
@@ -283,6 +291,26 @@ XWalkContentsIoThreadClientImpl::ShouldInterceptRequest(
       info->GetResourceType() == content::RESOURCE_TYPE_MAIN_FRAME;
   bool has_user_gesture = info && info->HasUserGesture();
 
+  // update: include request body data:
+  std::vector<std::vector<uint8_t>> request_body_bytes = std::vector<std::vector<uint8_t>>();
+  std::vector<string> file_list = std::vector<string>();
+  {
+    const net::UploadDataStream* upload_data = request->get_upload();
+    if (upload_data) {
+      const std::vector<std::unique_ptr<net::UploadElementReader>>* readers = upload_data->GetElementReaders();
+      for (const auto& reader : *readers) {
+        if (reader->AsBytesReader()) {
+          const net::UploadBytesElementReader* bytes_reader = reader->AsBytesReader();
+          request_body_bytes.push_back( std::vector<uint8_t>(bytes_reader->bytes(), bytes_reader->length()) );
+        } else if (reader->AsFileReader()) {
+          const net::UploadFileElementReader* file_reader = reader->AsFileReader();
+          auto file_path = file_reader->path().AsUTF8Unsafe();
+          file_list.push_back( file_path );
+        }
+      }
+    }
+  }
+
   vector<string> headers_names;
   vector<string> headers_values;
   {
@@ -306,6 +334,10 @@ XWalkContentsIoThreadClientImpl::ShouldInterceptRequest(
   ScopedJavaLocalRef<jobjectArray> jstringArray_headers_values =
       ToJavaArrayOfStrings(env, headers_values);
 
+  // update: include request body data:
+  ScopedJavaLocalRef<jobjectArray> jbyteArrayArray_list = ToJavaArrayOfByteArrays(env, request_body_bytes);
+  ScopedJavaLocalRef<jobjectArray> jstringArray_file_list = ToJavaArrayOfStrings(env, file_list);
+
   ScopedJavaLocalRef<jobject> ret =
       Java_XWalkContentsIoThreadClient_shouldInterceptRequest(
           env,
@@ -315,7 +347,13 @@ XWalkContentsIoThreadClientImpl::ShouldInterceptRequest(
           has_user_gesture,
           jstring_method.obj(),
           jstringArray_headers_names.obj(),
-          jstringArray_headers_values.obj());
+          jstringArray_headers_values.obj()
+
+          // update: include request body data:
+          , jbyteArrayArray_list.obj()
+          , jstringArray_file_list.obj()
+      );
+
   if (ret.is_null())
     return scoped_ptr<XWalkWebResourceResponse>();
   return scoped_ptr<XWalkWebResourceResponse>(

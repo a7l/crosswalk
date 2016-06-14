@@ -50,7 +50,12 @@ public abstract class XWalkContentsIoThreadClient {
     @CalledByNative
     protected XWalkWebResourceResponseInternal shouldInterceptRequest(String url, boolean isMainFrame,
             boolean hasUserGesture, String method, String[] requestHeaderNames,
-            String[] requestHeaderValues) {
+            String[] requestHeaderValues
+
+            // update: include request body data:
+            byte[][] bodyByteArrayList
+            String[] bodyFileList
+            ) {
         XWalkContentsClient.WebResourceRequestInner request =
             new XWalkContentsClient.WebResourceRequestInner();
         request.url = url;
@@ -61,6 +66,11 @@ public abstract class XWalkContentsIoThreadClient {
         for (int i = 0; i < requestHeaderNames.length; ++i) {
             request.requestHeaders.put(requestHeaderNames[i], requestHeaderValues[i]);
         }
+
+        // update: include request body data:
+        request.bodyByteArrayList = bodyByteArrayList;
+        request.bodyFileList = bodyFileList;
+
         return shouldInterceptRequest(request);
     }
 

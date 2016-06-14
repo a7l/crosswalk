@@ -152,6 +152,11 @@ abstract class XWalkContentsClient extends ContentViewClient {
         public String method;
         // Headers that would have been sent to server.
         public HashMap<String, String> requestHeaders;
+
+        // update: include request body data:
+        public String[] bodyFileList;
+        public byte[][] bodyByteArrayList;
+
     }
     public abstract void getVisitedHistory(ValueCallback<String[]> callback);
 

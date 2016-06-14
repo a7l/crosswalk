@@ -47,4 +47,16 @@ public class XWalkWebResourceRequestHandlerInternal implements XWalkWebResourceR
     public Map<String, String> getRequestHeaders() {
         return mRequest.requestHeaders;
     }
+
+    // update: include request body data:
+    @XWalkAPI
+    public String[] getBodyFileList() {
+        return mRequest.bodyFileList;
+    }
+    @XWalkAPI
+    public byte[][] getBodyByteArrayList() {
+        return mRequest.bodyByteArrayList;
+    }
+
+
 }
